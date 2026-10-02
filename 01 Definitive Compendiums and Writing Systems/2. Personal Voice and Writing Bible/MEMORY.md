@@ -1,0 +1,3 @@
+- [User Profile](user_profile.md) — Stephen/Stephycopy: marketing strategist & copywriter, Web3/fintech, career timeline, commercial goal
+- [Voice & Writing Rules](voice_and_writing_rules.md) — hard rules for drafting: no invented anecdotes, minimize em dashes, no credential-led hooks
+- [Content Reference Library](content_reference_library.md) — location of his pillar knowledge base, craft PDFs, CV
