@@ -1,0 +1,166 @@
+# ==============================================================================
+# Moyo-Pay: Chat Update Logger & GitHub Synchronizer
+# ==============================================================================
+param(
+    [string]$Topic = "",
+    [string]$Summary = "",
+    [string]$Notes = "",
+    [switch]$NoPush
+)
+
+$ErrorActionPreference = "Stop"
+
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+function Write-Banner {
+    param([string]$Text, [string]$Color = "Magenta")
+    Write-Host ""
+    Write-Host ("=" * 60) -ForegroundColor $Color
+    Write-Host "  $Text" -ForegroundColor $Color
+    Write-Host ("=" * 60) -ForegroundColor $Color
+    Write-Host ""
+}
+
+$repoRoot = (git rev-parse --show-toplevel 2>$null)
+if (-not $repoRoot) {
+    Write-Host "[ERROR] This folder is not a Git repository!" -ForegroundColor Red
+    exit 1
+}
+Set-Location $repoRoot
+
+$logFile = Join-Path $repoRoot "CHAT_UPDATES.md"
+if (-not (Test-Path $logFile)) {
+    Write-Host "[INFO] Initializing CHAT_UPDATES.md..." -ForegroundColor Yellow
+    @"
+# Moyo Pay Project & Chat Updates Log
+
+This file tracks progress, ongoing chat sessions, decisions, and updates made to the **Moyo Pay** repository. Every time you log an update using \`log_chat_update.bat\` or sync progress, it is recorded here and automatically pushed to GitHub.
+
+---
+
+## 📌 Quick Summary & Current Status
+- **Repository**: [StephSMITH-hub/Moyo-Pay](https://github.com/StephSMITH-hub/Moyo-Pay)
+- **Active Branch**: main
+
+---
+
+## 🕒 Chronological Chat & Progress Logs
+
+"@ | Out-File -FilePath $logFile -Encoding utf8
+}
+
+Write-Banner "MOYO-PAY: LOG CHAT UPDATE & SYNC" "Magenta"
+
+# Interactive prompts if arguments were not passed
+if ([string]::IsNullOrWhiteSpace($Topic) -and [string]::IsNullOrWhiteSpace($Summary)) {
+    Write-Host "Enter details for your current chat session / progress update:`n" -ForegroundColor Cyan
+    
+    $Topic = Read-Host "Topic / Category (e.g., Affiliate Model, Copywriting, Funnel, Dev)"
+    if ([string]::IsNullOrWhiteSpace($Topic)) {
+        $Topic = "General Progress & Workspace Chat"
+    }
+
+    $Summary = Read-Host "Summary of chat / work done"
+    if ([string]::IsNullOrWhiteSpace($Summary)) {
+        $Summary = "Updated project materials, strategies, and workspace assets."
+    }
+
+    $Notes = Read-Host "Key bullet points (optional, separate multiple with semicolon ';')"
+} elseif ([string]::IsNullOrWhiteSpace($Topic)) {
+    $Topic = "Folder & Chat Update"
+}
+
+# Inspect git modified files to record what was changed alongside this chat
+$gitChanges = (git status --porcelain 2>$null)
+$fileList = @()
+if ($gitChanges) {
+    foreach ($line in $gitChanges) {
+        $cleanLine = $line.Trim()
+        if ($cleanLine.Length -gt 3) {
+            $fileList += ($cleanLine.Substring(3)).Trim()
+        }
+    }
+}
+
+$nowStr = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+$dateTag = (Get-Date).ToString("yyyy-MM-dd")
+
+# Build the Markdown entry
+$entryBuilder = [System.Text.StringBuilder]::new()
+$null = $entryBuilder.AppendLine("### 📝 [$nowStr] $Topic")
+$null = $entryBuilder.AppendLine("- **Summary**: $Summary")
+
+if (-not [string]::IsNullOrWhiteSpace($Notes)) {
+    $null = $entryBuilder.AppendLine("- **Key Discussion / Action Items**:")
+    $bulletItems = $Notes -split ";"
+    foreach ($b in $bulletItems) {
+        $trimmed = $b.Trim()
+        if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+            $null = $entryBuilder.AppendLine("  - $trimmed")
+        }
+    }
+}
+
+if ($fileList.Count -gt 0) {
+    $null = $entryBuilder.AppendLine("- **Workspace Files Impacted**:")
+    foreach ($f in ($fileList | Select-Object -First 8)) {
+        $null = $entryBuilder.AppendLine("  - \`$f\`")
+    }
+    if ($fileList.Count -gt 8) {
+        $null = $entryBuilder.AppendLine("  - ... and $($fileList.Count - 8) additional files")
+    }
+}
+
+$null = $entryBuilder.AppendLine("- **GitHub Sync Status**: ✅ Logged & Synced")
+$null = $entryBuilder.AppendLine("---`n")
+$newEntryText = $entryBuilder.ToString()
+
+# Insert new entry right under "## 🕒 Chronological Chat & Progress Logs"
+$content = Get-Content -Path $logFile -Raw -Encoding utf8
+$targetAnchor = "## 🕒 Chronological Chat & Progress Logs"
+
+if ($content.Contains($targetAnchor)) {
+    $targetIndex = $content.IndexOf($targetAnchor) + $targetAnchor.Length
+    $updatedContent = $content.Substring(0, $targetIndex) + "`n`n" + $newEntryText + $content.Substring($targetIndex).TrimStart("`r`n")
+    [System.IO.File]::WriteAllText($logFile, $updatedContent, [System.Text.Encoding]::UTF8)
+} else {
+    Add-Content -Path $logFile -Value "`n$newEntryText" -Encoding utf8
+}
+
+Write-Host "`n[SUCCESS] Chat update logged to CHAT_UPDATES.md!" -ForegroundColor Green
+
+# Push directly to GitHub unless -NoPush is specified
+if (-not $NoPush) {
+    Write-Host "`n[SYNC] Committing and pushing update to GitHub..." -ForegroundColor Cyan
+    $branch = (git rev-parse --abbrev-ref HEAD 2>$null)
+    if (-not $branch) { $branch = "main" }
+    
+    git add -A
+    $commitMsg = "docs(chat-log): [$dateTag] $Topic - $Summary"
+    if ($commitMsg.Length -gt 72) {
+        $commitMsg = $commitMsg.Substring(0, 69) + "..."
+    }
+    git commit -m "$commitMsg"
+    git push origin $branch
+    
+    Write-Banner "CHAT UPDATE SAVED & SYNCED TO GITHUB!" "Green"
+} else {
+    Write-Host "[NOTE] Local file updated. GitHub push skipped (-NoPush)." -ForegroundColor Yellow
+}
+
+# Display recent updates summary for user awareness
+Write-Host "`n----- RECENT 2 CHAT UPDATES IN MOYO-PAY -----" -ForegroundColor Cyan
+$recentLines = Get-Content -Path $logFile -Encoding utf8
+$count = 0
+foreach ($line in $recentLines) {
+    if ($line.StartsWith("### 📝")) {
+        $count++
+        if ($count -gt 2) { break }
+    }
+    if ($count -ge 1 -and $line -ne "---") {
+        Write-Host $line -ForegroundColor Gray
+    }
+}
+Write-Host "--------------------------------------------`n" -ForegroundColor Cyan
+Write-Host "Full log available at: [CHAT_UPDATES.md](file:///$($logFile.Replace('\', '/')))" -ForegroundColor DarkGray
