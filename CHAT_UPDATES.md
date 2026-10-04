@@ -33,7 +33,7 @@ This file tracks progress, ongoing chat sessions, decisions, and updates made to
   - Tested remote GitHub synchronization
   - Validated pull engine with auto-stash
 - **Workspace Files Impacted**:
-  - `ync-tools/log_chat_update.ps1`
+  - `sync-tools/log_chat_update.ps1`
 - **GitHub Sync Status**: Synced
 ---
 
