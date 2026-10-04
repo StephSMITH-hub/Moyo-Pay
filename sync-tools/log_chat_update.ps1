@@ -77,9 +77,8 @@ $gitChanges = (git status --porcelain 2>$null)
 $fileList = @()
 if ($gitChanges) {
     foreach ($line in $gitChanges) {
-        $cleanLine = $line.Trim()
-        if ($cleanLine.Length -gt 3) {
-            $fileList += ($cleanLine.Substring(3)).Trim()
+        if ($line.Length -gt 3) {
+            $fileList += ($line.Substring(3)).Trim()
         }
     }
 }
