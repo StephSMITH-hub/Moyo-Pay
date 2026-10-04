@@ -5,7 +5,7 @@ param(
     [string]$Message = ""
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 # Set encoding to UTF8 for clean emoji & formatting output
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -92,7 +92,7 @@ try {
     }
 
     Write-Host "[3/3] Pushing to GitHub (origin/$branch)..." -ForegroundColor Cyan
-    $pushOutput = git push origin $branch 2>&1
+    git push origin $branch
     
     if ($LASTEXITCODE -ne 0) {
         Write-Host "`n[WARNING] Direct push encountered an issue. Checking for remote updates..." -ForegroundColor Yellow
@@ -101,14 +101,19 @@ try {
         git push origin $branch
     }
 
-    $latestCommit = (git log -1 --oneline 2>$null)
-    Write-Banner "SUCCESSFULLY SYNCED WITH GITHUB!" "Green"
-    Write-Host "Latest Commit: $latestCommit" -ForegroundColor Green
-    Write-Host "Synced At:     $nowStr" -ForegroundColor DarkGray
-    Write-Host "View online:   https://github.com/StephSMITH-hub/Moyo-Pay" -ForegroundColor Cyan
-    Write-Host ""
+    if ($LASTEXITCODE -eq 0) {
+        $latestCommit = (git log -1 --oneline 2>$null)
+        Write-Banner "SUCCESSFULLY SYNCED WITH GITHUB!" "Green"
+        Write-Host "Latest Commit: $latestCommit" -ForegroundColor Green
+        Write-Host "Synced At:     $nowStr" -ForegroundColor DarkGray
+        Write-Host "View online:   https://github.com/StephSMITH-hub/Moyo-Pay" -ForegroundColor Cyan
+        Write-Host ""
+    } else {
+        Write-Host "`n[ERROR] Sync failed. Please check your network connection and git permissions." -ForegroundColor Red
+        exit 1
+    }
 }
 catch {
-    Write-Host "`n[ERROR] Sync failed: $_" -ForegroundColor Red
+    Write-Host "`n[ERROR] Unexpected script error: $_" -ForegroundColor Red
     exit 1
 }

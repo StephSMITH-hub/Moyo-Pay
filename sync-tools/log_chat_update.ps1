@@ -8,7 +8,7 @@ param(
     [switch]$NoPush
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
@@ -144,7 +144,11 @@ if (-not $NoPush) {
     git commit -m "$commitMsg"
     git push origin $branch
     
-    Write-Banner "CHAT UPDATE SAVED & SYNCED TO GITHUB!" "Green"
+    if ($LASTEXITCODE -eq 0) {
+        Write-Banner "CHAT UPDATE SAVED & SYNCED TO GITHUB!" "Green"
+    } else {
+        Write-Host "`n[WARNING] Push to GitHub encountered an issue. Changes are saved locally." -ForegroundColor Yellow
+    }
 } else {
     Write-Host "[NOTE] Local file updated. GitHub push skipped (-NoPush)." -ForegroundColor Yellow
 }
